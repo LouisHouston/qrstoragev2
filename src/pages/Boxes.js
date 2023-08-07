@@ -1,59 +1,113 @@
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "../Services/Login";
+import "../styles/images.css";
 import firebase from "firebase/compat/app";
 import "firebase/compat/storage";
-import "firebase/compat/auth";
-import { Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-const Box = () => {
+const Box = ({ boxName }) => {
+  const [images, setImages] = useState([]); // State to store images
   const { user } = useContext(UserContext);
-  const { boxName } = useParams();
-  const [images, setImages] = useState([]);
-  const navigate = useNavigate();
-
-  // Retrieve the images for the selected box
-  const retrieveImages = async () => {
-    const uid = user.uid;
-    const folderPath = `users/folders/${uid}`;
-
-    try {
-      const folderRef = firebase.storage().ref(folderPath);
-      const folderItems = await folderRef.listAll();
-      const imageUrls = await Promise.all(
-        folderItems.items.map((item) => item.getDownloadURL())
-      );
-      setImages(imageUrls);
-    } catch (error) {
-      console.log("Error retrieving images:", error);
-    }
-  };
 
   useEffect(() => {
-    retrieveImages();
-  }, [boxName]);
+    // Fetch and display images from Firebase Storage for the specific box
+    const fetchImages = async () => {
+      try {
+        const imagesRef = firebase.storage().ref(`users/folders/${user.uid}/${boxName}`);
+        const imagesList = await imagesRef.listAll();
+
+        const imageUrls = await Promise.all(imagesList.items.map(async (item) => {
+          const name = item.name.toLowerCase();
+          if (name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")) {
+            const url = await item.getDownloadURL();
+            return url;
+          }
+          return null;
+        }));
+
+        setImages(imageUrls.filter(url => url !== null));
+      } catch (error) {
+        console.log("Error fetching images:", error);
+      }
+    };
+
+    fetchImages();
+  }, [user?.uid, boxName]);
 
   return (
     <div>
-      <h1>Box: {boxName}</h1>
-      <button onClick={() => navigate("/boxes")}>Go Back</button>
-      {images.map((imageUrl, index) => (
-        <img key={index} src={imageUrl} alt={`Image ${index + 1}`} />
-      ))}
+      <h2>{boxName} Images</h2>
+      <div className="images-grid">
+        {images.map((imageUrl, index) => (
+          <div className="image-container" key={index}>
+            <img src={imageUrl} alt={`Image ${index}`} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
 const Boxes = () => {
-  const { boxes } = useContext(UserContext);
-  const { user } = useContext(UserContext);
+  const { boxes, user } = useContext(UserContext);
+  const [boxNames, setBoxNames] = useState([]);
   const [boxName, setBoxName] = useState("");
+  const [selectedBox, setSelectedBox] = useState(null);
   const navigate = useNavigate();
 
-  const createBox = async () => {
+  const fetchBoxNames = async () => {
+    try {
+      if (user?.uid) {
+        const userBoxesRef = firebase.storage().ref(`users/folders/${user.uid}`);
+        const userBoxesList = await userBoxesRef.listAll();
+
+        const boxNamesList = await Promise.all(userBoxesList.prefixes.map(async (folder) => {
+          const folderName = folder.name.split("/").pop();
+          return folderName;
+        }));
+
+        setBoxNames(boxNamesList);
+      }
+    } catch (error) {
+      console.log("Error fetching box names:", error);
+    }
+  };
+
+  const handleDeleteBox = async (boxName) => {
+    if (!user?.uid) {
+      console.log("Login to delete a box.");
+      return;
+    }
+  
     const uid = user.uid;
     const folderPath = `users/folders/${uid}/${boxName}/`;
+  
+    try {
+      const folderRef = firebase.storage().ref().child(folderPath);
+      await folderRef.delete();
+      console.log("Box deleted successfully.");
+  
+      // Update the boxNames state to remove the deleted box name
+      setBoxNames(prevBoxNames => prevBoxNames.filter(name => name !== boxName));
+    } catch (error) {
+      console.log("Error deleting box:", error.code, error.message);
+    }
+  };
+  
+  
 
+  useEffect(() => {
+    fetchBoxNames();
+  }, [user?.uid]);
 
+  const createBox = async () => {
+    if (!user?.uid) {
+      console.log("Login to create a box.");
+      return;
+    }
+
+    const uid = user.uid;
+    const folderPath = `users/folders/${uid}/${boxName}/`;
 
     try {
       if (boxes.some((folder) => folder.name.startsWith(boxName + "/"))) {
@@ -64,54 +118,67 @@ const Boxes = () => {
       await folderRef.child(".keep").putString("");
       console.log("Box created successfully.");
 
-      // Reset the boxName state to empty string
       setBoxName("");
+
+      // Update the boxNames state with the new box name
+      setBoxNames(prevBoxNames => [...prevBoxNames, boxName]);
     } catch (error) {
       console.log("Error creating box:", error);
     }
   };
 
+  const handleBoxClick = (boxName) => {
+    setSelectedBox(boxName);
+  };
+
+
+
   return (
     <>
       <h1>Boxes</h1>
-      <span>
+      <div>
         <h2>Create a Box:</h2>
-        <input
-          type="text"
-          value={boxName}
-          onChange={(e) => setBoxName(e.target.value)}
-          placeholder="Enter box name"
-        />
-        <button onClick={createBox}>Create Box</button>
-      </span>
+        <form onSubmit={createBox}>
+          <input
+            type="text"
+            value={boxName}
+            onChange={(e) => setBoxName(e.target.value)}
+            placeholder="Enter box name"
+            disabled={!user?.uid} // Use optional chaining to prevent errors if user is null
+          />
+          <button type="submit" disabled={!user?.uid}>
+            Create Box
+          </button>
+        </form>
+      </div>
 
-      {boxes && (
-        <ul>
-          {boxes.map((folder, index) => {
-            // Check if the folder name ends with a trailing slash
-            if (folder.name.endsWith("/")) {
-              const boxName = folder.name.substring(
-                0,
-                folder.name.length - 1
-              ); // Remove the trailing slash
-              const boxPath = `/boxes/${boxName}`; // Generate the box route path
-              return (
-                <li key={index}>
-                  <Link to={boxPath}>{boxName}</Link>
-                </li>
-              );
-            } else {
-              return null;
-            }
-          })}
-        </ul>
+      {boxNames.length > 0 && (
+        <div className="box-names">
+          {boxNames.map((boxName, index) => (
+            <>
+            <div
+              key={index}
+              onClick={() => handleBoxClick(boxName)}
+              className="box-name"
+            >
+              {boxName}
+              </div>
+              <div>
+              <button onClick={() => handleDeleteBox(boxName)}>Delete</button>
+              <button >Rename</button>
+              <button>QR</button>
+            </div>
+            </>
+          ))}
+        </div>
       )}
 
-      <Routes>
-        <Route path="/boxes/:boxName" element={<Box />} />
-      </Routes>
+      {selectedBox && <Box boxName={selectedBox} />}
     </>
   );
 };
+
+
+
 
 export default Boxes;
