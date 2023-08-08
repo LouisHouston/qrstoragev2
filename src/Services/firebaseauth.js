@@ -17,7 +17,7 @@ export const auth = firebase.auth();
 const googleprovider = new firebase.auth.GoogleAuthProvider();
 
 export const signInWith = () => {
-    auth.signInWithPopup(googleprovider).then((res) => {
+    auth.signInWithRedirect(googleprovider).then((res) => {
         console.log(res.user)
     }).catch((error) => {
         console.log(error.message)
