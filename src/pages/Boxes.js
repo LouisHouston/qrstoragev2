@@ -61,6 +61,7 @@ const Boxes = () => {
         const userBoxesRef = firebase.storage().ref(`users/folders/${user.uid}`);
         const userBoxesList = await userBoxesRef.listAll();
 
+
         const boxNamesList = await Promise.all(userBoxesList.prefixes.map(async (folder) => {
           const folderName = folder.name.split("/").pop();
           return folderName;
@@ -79,18 +80,59 @@ const Boxes = () => {
       return;
     }
   
-    const uid = user.uid;
-    const folderPath = `users/folders/${uid}/${boxName}/`;
+    const folderPath = `users/folders/${user.uid}/${boxName}`;
   
     try {
-      const folderRef = firebase.storage().ref().child(folderPath);
-      await folderRef.delete();
-      console.log("Box deleted successfully.");
+      console.log("Attempting to delete folder at path:", folderPath);
+  
+      const folderRef = firebase.storage().ref(folderPath);
+      const items = await folderRef.listAll();
+  
+      // Delete each item (file) within the folder
+      await Promise.all(items.items.map(item => item.delete()));
+  
+  
+      console.log("Box and its contents deleted successfully.");
   
       // Update the boxNames state to remove the deleted box name
       setBoxNames(prevBoxNames => prevBoxNames.filter(name => name !== boxName));
     } catch (error) {
       console.log("Error deleting box:", error.code, error.message);
+    }
+  };
+  
+  const handleUpload = async (boxName) => {
+    if (!user?.uid) {
+      console.log("Login to upload.");
+      return;
+    }
+  
+    const folderPath = `users/folders/${user.uid}/${boxName}`;
+  
+    try {
+      console.log("Attempting to upload to a folder at path:", folderPath);
+  
+      const folderRef = firebase.storage().ref(folderPath); // Reference to the folder
+  
+      // Create an input element for file selection
+      const inputElement = document.createElement("input");
+      inputElement.type = "file";
+      inputElement.accept = "image/*"; // Allow only image files
+  
+      // Listen for changes to the input element
+      inputElement.addEventListener("change", async (event) => {
+        const file = event.target.files[0]; // Get the selected file
+        if (file) {
+          const fileRef = folderRef.child(file.name); // Create a reference to the file within the folder
+          await fileRef.put(file); // Upload the file
+          console.log("File uploaded successfully.");
+        }
+      });
+  
+      // Trigger the input element's click event to open the file picker dialog
+      inputElement.click();
+    } catch (error) {
+      console.log("Error uploading:", error.code, error.message);
     }
   };
   
@@ -105,10 +147,10 @@ const Boxes = () => {
       console.log("Login to create a box.");
       return;
     }
-
+  
     const uid = user.uid;
     const folderPath = `users/folders/${uid}/${boxName}/`;
-
+  
     try {
       if (boxes.some((folder) => folder.name.startsWith(boxName + "/"))) {
         console.log("Box already exists.");
@@ -117,15 +159,16 @@ const Boxes = () => {
       const folderRef = firebase.storage().ref(folderPath);
       await folderRef.child(".keep").putString("");
       console.log("Box created successfully.");
-
+  
       setBoxName("");
-
+  
       // Update the boxNames state with the new box name
       setBoxNames(prevBoxNames => [...prevBoxNames, boxName]);
     } catch (error) {
       console.log("Error creating box:", error);
     }
   };
+  
 
   const handleBoxClick = (boxName) => {
     setSelectedBox(boxName);
@@ -144,7 +187,7 @@ const Boxes = () => {
             value={boxName}
             onChange={(e) => setBoxName(e.target.value)}
             placeholder="Enter box name"
-            disabled={!user?.uid} // Use optional chaining to prevent errors if user is null
+            disabled={!user?.uid} 
           />
           <button type="submit" disabled={!user?.uid}>
             Create Box
@@ -165,7 +208,7 @@ const Boxes = () => {
               </div>
               <div>
               <button onClick={() => handleDeleteBox(boxName)}>Delete</button>
-              <button >Rename</button>
+              <button onClick={() => handleUpload(boxName)}>Upload</button>
               <button>QR</button>
             </div>
             </>
