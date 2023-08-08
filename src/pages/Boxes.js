@@ -3,7 +3,7 @@ import { UserContext } from "../Services/Login";
 import "../styles/images.css";
 import firebase from "firebase/compat/app";
 import "firebase/compat/storage";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const Box = ({ boxName }) => {
   const [images, setImages] = useState([]); // State to store images
@@ -53,14 +53,16 @@ const Boxes = () => {
   const [boxNames, setBoxNames] = useState([]);
   const [boxName, setBoxName] = useState("");
   const [selectedBox, setSelectedBox] = useState(null);
-  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const selectedBoxFromUrl = queryParams.get("boxName");
+
 
   const fetchBoxNames = async () => {
     try {
       if (user?.uid) {
         const userBoxesRef = firebase.storage().ref(`users/folders/${user.uid}`);
         const userBoxesList = await userBoxesRef.listAll();
-
 
         const boxNamesList = await Promise.all(userBoxesList.prefixes.map(async (folder) => {
           const folderName = folder.name.split("/").pop();
@@ -179,44 +181,39 @@ const Boxes = () => {
   return (
     <>
       <h1>Boxes</h1>
+
       <div>
-        <h2>Create a Box:</h2>
-        <form onSubmit={createBox}>
-          <input
-            type="text"
-            value={boxName}
-            onChange={(e) => setBoxName(e.target.value)}
-            placeholder="Enter box name"
-            disabled={!user?.uid} 
-          />
-          <button type="submit" disabled={!user?.uid}>
-            Create Box
-          </button>
-        </form>
-      </div>
+  <h2>Create a Box:</h2>
+  <form onSubmit={createBox}>
+    <input
+      type="text"
+      value={boxName}
+      onChange={(e) => setBoxName(e.target.value)}
+      placeholder="Enter box name"
+      disabled={!user?.uid}
+    />
+    <button type="submit" disabled={!user?.uid}>
+      Create Box
+    </button>
+  </form>
+</div>
 
       {boxNames.length > 0 && (
         <div className="box-names">
           {boxNames.map((boxName, index) => (
-            <>
-            <div
-              key={index}
-              onClick={() => handleBoxClick(boxName)}
-              className="box-name"
-            >
-              {boxName}
-              </div>
+            <div key={index} className="box-name">
+              <Link to={`/boxes?boxName=${boxName}`}>{boxName}</Link>
               <div>
-              <button onClick={() => handleDeleteBox(boxName)}>Delete</button>
-              <button onClick={() => handleUpload(boxName)}>Upload</button>
-              <button>QR</button>
+                <button onClick={() => handleDeleteBox(boxName)}>Delete</button>
+                <button onClick={() => handleUpload(boxName)}>Upload</button>
+                <Link to={`/boxes?boxName=${boxName}`}>QR</Link>
+              </div>
             </div>
-            </>
           ))}
         </div>
       )}
 
-      {selectedBox && <Box boxName={selectedBox} />}
+      {selectedBox || selectedBoxFromUrl ? <Box boxName={selectedBox || selectedBoxFromUrl} /> : null}
     </>
   );
 };
