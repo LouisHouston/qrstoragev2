@@ -3,11 +3,11 @@ import { UserContext } from "../Services/Login";
 import "../styles/images.css";
 import firebase from "firebase/compat/app";
 import "firebase/compat/storage";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import QRCode from "qrcode.react"; // Import the QRCode component
 
 
-const Box = ({ boxName }) => {
+const Box = ({ boxName, fetchImages }) => {
   const [images, setImages] = useState([]); // State to store images
   const { user } = useContext(UserContext);
 
@@ -59,6 +59,7 @@ const Box = ({ boxName }) => {
 };
 
 const Boxes = () => {
+  const [images, setImages] = useState([]); // State to store images
   const { boxes, user } = useContext(UserContext);
   const [boxNames, setBoxNames] = useState([]);
   const [boxName, setBoxName] = useState("");
@@ -67,6 +68,7 @@ const Boxes = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const selectedBoxFromUrl = queryParams.get("boxName");
+  const history = useNavigate();
 
   const fetchBoxNames = async () => {
     try {
@@ -113,6 +115,7 @@ const Boxes = () => {
       setBoxNames((prevBoxNames) =>
         prevBoxNames.filter((name) => name !== boxName)
       );
+      history("/boxes");
     } catch (error) {
       console.log("Error deleting box:", error.code, error.message);
     }
@@ -179,6 +182,8 @@ const Boxes = () => {
 
       // Update the boxNames state with the new box name
       setBoxNames((prevBoxNames) => [...prevBoxNames, boxName]);
+      await fetchBoxNames
+      history("/boxes");
     } catch (error) {
       console.log("Error creating box:", error);
     }
@@ -194,7 +199,7 @@ const Boxes = () => {
 
       <div>
         <h2>Create a Box:</h2>
-        <form onSubmit={createBox}>
+        <form onSubmit={(e) => { e.preventDefault(); createBox(); }}>
           <input
             type="text"
             value={boxName}
