@@ -10,9 +10,8 @@ import {Login, UserProvider} from "./Services/Login";
 function App() {
   return (
     <UserProvider>
-    <BrowserRouter>
+    <BrowserRouter basename="/qrstoragev2/">
     <Routes>
-      <Route basename="/qrstoragev2/"></Route>
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="boxes/*" element={<Boxes />} />
