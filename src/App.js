@@ -12,6 +12,7 @@ function App() {
     <UserProvider>
     <BrowserRouter>
     <Routes>
+      <Router basename="/qrstoragev2/"></Router>
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="boxes/*" element={<Boxes />} />
