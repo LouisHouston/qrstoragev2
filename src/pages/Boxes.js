@@ -5,8 +5,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/storage";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import QRCode from "qrcode.react"; 
-import "../styles/alerts.css";
-
+import '../styles/alerts.css';
 const Box = ({ boxName, fetchImages }) => {
   const [images, setImages] = useState([]); // State to store images
   const { user } = useContext(UserContext);
@@ -264,7 +263,7 @@ const Boxes = () => {
           </button>
         </form>
         {alert && (
-          <div className={`alert ${alert.type}`} onClick={() => setAlert(null)}>
+          <div className={`alerts ${alert.type}`} onClick={() => setAlert(null)}>
             <span className="alertText">{alert.message}</span>
           </div>
         )}

@@ -1,4 +1,4 @@
-.alert {
+.alerts {
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -72,5 +72,5 @@
   .deleted {
     background-color: #FEE;
     border: 1px solid #EDD;
-    color: rgb(226, 114, 99);
+    color: rgb(226, 114, 99)!important;
   }
