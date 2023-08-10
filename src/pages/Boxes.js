@@ -4,8 +4,8 @@ import "../styles/images.css";
 import firebase from "firebase/compat/app";
 import "firebase/compat/storage";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import QRCode from "qrcode.react"; // Import the QRCode component
-
+import QRCode from "qrcode.react"; 
+import "../styles/alerts.css";
 
 const Box = ({ boxName, fetchImages }) => {
   const [images, setImages] = useState([]); // State to store images
@@ -69,6 +69,11 @@ const Boxes = () => {
   const queryParams = new URLSearchParams(location.search);
   const selectedBoxFromUrl = queryParams.get("boxName");
   const history = useNavigate();
+  const [alert, setAlert] = useState(null);
+
+  const showAlert = (message, type) => {
+    setAlert({ message, type });
+  };
 
   const fetchBoxNames = async () => {
     try {
@@ -106,10 +111,12 @@ const Boxes = () => {
       const folderRef = firebase.storage().ref(folderPath);
       const items = await folderRef.listAll();
 
-      // Delete each item (file) within the folder
+      // Delete each pictures within the folder
       await Promise.all(items.items.map((item) => item.delete()));
 
       console.log("Box and its contents deleted successfully.");
+      showAlert("Box deleted", "deleted");
+
 
       // Update the boxNames state to remove the deleted box name
       setBoxNames((prevBoxNames) =>
@@ -132,25 +139,33 @@ const Boxes = () => {
     try {
       console.log("Attempting to upload to a folder at path:", folderPath);
 
-      const folderRef = firebase.storage().ref(folderPath); // Reference to the folder
-
-      // Create an input element for file selection
+      const folderRef = firebase.storage().ref(folderPath);
       const inputElement = document.createElement("input");
       inputElement.type = "file";
-      inputElement.accept = "image/*"; // Allow only image files
+      inputElement.accept = "image/*";
 
-      // Listen for changes to the input element
-      inputElement.addEventListener("change", async (event) => {
-        const file = event.target.files[0]; // Get the selected file
-        if (file) {
-          const fileRef = folderRef.child(file.name); // Create a reference to the file within the folder
-          await fileRef.put(file); // Upload the file
-          console.log("File uploaded successfully.");
-        }
+      // promise user gets image
+      const fileSelectedPromise = new Promise((resolve) => {
+        inputElement.addEventListener("change", (event) => {
+          resolve(event.target.files[0]);
+        });
       });
 
-      // Trigger the input element's click event to open the file picker dialog
+      // trigger the input element's click event to open the file picker dialog
       inputElement.click();
+
+      // Waiting for the user to select a file
+      const selectedFile = await fileSelectedPromise;
+
+      if (selectedFile) {
+        const fileRef = folderRef.child(selectedFile.name);
+        await fileRef.put(selectedFile);
+        console.log("File uploaded successfully.");
+        showAlert("Picture uploaded!", "success");
+        // Fetch updated images for the box after uploading
+        const imageUrls = await fetchImagesForBox(boxName);
+        setImages(imageUrls);
+      }
     } catch (error) {
       console.log("Error uploading:", error.code, error.message);
     }
@@ -172,25 +187,57 @@ const Boxes = () => {
     try {
       if (boxes.some((folder) => folder.name.startsWith(boxName + "/"))) {
         console.log("Box already exists.");
+        showAlert("Box already exists.", "warning");
         return;
       }
       const folderRef = firebase.storage().ref(folderPath);
       await folderRef.child(".keep").putString("");
       console.log("Box created successfully.");
+      showAlert("Box created successfully", "success");
 
       setBoxName("");
 
       // Update the boxNames state with the new box name
       setBoxNames((prevBoxNames) => [...prevBoxNames, boxName]);
-      await fetchBoxNames
+      await fetchBoxNames;
       history("/boxes");
     } catch (error) {
       console.log("Error creating box:", error);
+      showAlert("Error creating box.", "error");
     }
   };
 
   const handleBoxClick = (boxName) => {
     setSelectedBox(boxName);
+  };
+
+  const fetchImagesForBox = async (boxName) => {
+    try {
+      const imagesRef = firebase
+        .storage()
+        .ref(`users/folders/${user.uid}/${boxName}`);
+      const imagesList = await imagesRef.listAll();
+
+      const imageUrls = await Promise.all(
+        imagesList.items.map(async (item) => {
+          const name = item.name.toLowerCase();
+          if (
+            name.endsWith(".jpg") ||
+            name.endsWith(".jpeg") ||
+            name.endsWith(".png")
+          ) {
+            const url = await item.getDownloadURL();
+            return url;
+          }
+          return null;
+        })
+      );
+
+      return imageUrls.filter((url) => url !== null);
+    } catch (error) {
+      console.log("Error fetching images:", error);
+      return [];
+    }
   };
 
   return (
@@ -199,7 +246,12 @@ const Boxes = () => {
 
       <div>
         <h2>Create a Box:</h2>
-        <form onSubmit={(e) => { e.preventDefault(); createBox(); }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            createBox();
+          }}
+        >
           <input
             type="text"
             value={boxName}
@@ -211,6 +263,11 @@ const Boxes = () => {
             Create Box
           </button>
         </form>
+        {alert && (
+          <div className={`alert ${alert.type}`} onClick={() => setAlert(null)}>
+            <span className="alertText">{alert.message}</span>
+          </div>
+        )}
       </div>
 
       {boxNames.length > 0 && (
@@ -221,11 +278,15 @@ const Boxes = () => {
               <div>
                 <button onClick={() => handleDeleteBox(boxName)}>Delete</button>
                 <button onClick={() => handleUpload(boxName)}>Upload</button>
-                <button onClick={() => setSelectedBoxForQR(boxName)}>Generate QR</button>
+                <button onClick={() => setSelectedBoxForQR(boxName)}>
+                  Generate QR
+                </button>
               </div>
               {selectedBoxForQR === boxName && (
                 <div>
-                  <QRCode value={`${window.location.origin}/boxes?boxName=${boxName}`} />
+                  <QRCode
+                    value={`${window.location.origin}/boxes?boxName=${boxName}`}
+                  />
                 </div>
               )}
             </div>
