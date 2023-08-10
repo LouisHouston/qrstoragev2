@@ -12,7 +12,7 @@ function App() {
     <UserProvider>
     <BrowserRouter>
     <Routes>
-      <Router basename="/qrstoragev2/"></Router>
+      <Route basename="/qrstoragev2/"></Route>
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="boxes/*" element={<Boxes />} />
