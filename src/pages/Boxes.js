@@ -244,7 +244,7 @@ const Boxes = () => {
       <h1>Boxes</h1>
 
       <div>
-        <h2>Create a Box:</h2>
+        <h2>Create a Box</h2>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -258,7 +258,7 @@ const Boxes = () => {
             placeholder="Enter box name"
             disabled={!user?.uid}
           />
-          <button type="submit" disabled={!user?.uid}>
+          <button type="submit" disabled={!user?.uid} className="create-buttons">
             Create Box
           </button>
         </form>
@@ -273,13 +273,11 @@ const Boxes = () => {
         <div className="box-names">
           {boxNames.map((boxName, index) => (
             <div key={index} className="box-name">
-              <Link to={`/boxes?boxName=${boxName}`}>{boxName}</Link>
+              <Link to={`/boxes?boxName=${boxName}`} className="box-linker">{boxName}</Link>
               <div>
-                <button onClick={() => handleDeleteBox(boxName)}>Delete</button>
-                <button onClick={() => handleUpload(boxName)}>Upload</button>
-                <button onClick={() => setSelectedBoxForQR(boxName)}>
-                  Generate QR
-                </button>
+                <button onClick={() => handleUpload(boxName)} className="upload-buttons">Upload</button>
+                <button onClick={() => setSelectedBoxForQR(boxName)} className="generate-buttons"> Generate QR </button>
+                <button onClick={() => handleDeleteBox(boxName)} className="delete-buttons">Delete</button>
               </div>
               {selectedBoxForQR === boxName && (
                 <div>

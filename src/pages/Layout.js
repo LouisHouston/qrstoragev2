@@ -31,7 +31,7 @@ const Layout = () => {
             <ul className="navbar-nav">
               {user ? (
                 <>
-                  <li className="nav-item">
+                  <li className="nav-item user-welcome">
                     <span className="nav-link" style={{ color: 'white' }}>
                       Welcome, {user.displayName}
                     </span>
